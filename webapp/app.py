@@ -16,7 +16,7 @@ app = Flask(__name__)
 # Routing
 @app.route('/')
 def hello():
-    return 'Linkhub API'
+    return 'Linkehub API'
 
 '''
     Request info from github
