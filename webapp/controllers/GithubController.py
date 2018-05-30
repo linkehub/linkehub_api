@@ -19,7 +19,7 @@ class GithubController():
         self.netUtils = NetworkingUtils()
 
     # TODO: Refactor this method
-    def scrapUserInfoFromGithub(self, userId):
+    def scrapUserInfoFromGithub(self, userId, language):
         response = {
             "success" : False,
             "msg" : "Failed to get information about this Github user",
@@ -53,7 +53,7 @@ class GithubController():
                 basicUserInfo = json.loads(data.decode(self.netUtils.UTF8_DECODER))
 
                 if basicUserInfo is not None:
-                    response["msg"] = "We got some basic info about the user from Github."
+                    response["msg"] = "We got some basic info about the user from Github. "
                     response["success"] = True
                     response["basic_github_user_info"] = basicUserInfo
 
@@ -71,16 +71,15 @@ class GithubController():
                 userRepos = json.loads(data.decode(self.netUtils.UTF8_DECODER))
 
                 if userRepos is not None:
-                    response["msg"] = response["msg"] + " We also got the list of repositories"
+                    response["msg"] = response["msg"] + " We also got the list of repositories. "
                     response["success"] = True
                     response["github_user_repos"] = userRepos
 
                     for repo in userRepos:
-                        language = repo["language"]
                         fullName = repo["full_name"]
                         
                         # GET user commits x repo x language
-                        print("Requesting list of commits of each repository ...")
+                        print("Requesting list of commits on a specific language in each repository ...")
 
                         time.sleep(5)
                         connection.request("GET", "/search/code?q=language:{0}+repo:{1}".format(language, fullName), headers={
@@ -93,9 +92,22 @@ class GithubController():
                         commitsPerLanguage = json.loads(data.decode(self.netUtils.UTF8_DECODER))
 
                         if commitsPerLanguage is not None:
-                            response["msg"] = response["msg"] + " We also got commits made by the user in {0}".format(language)
+                            response["msg"] = response["msg"] + " We also got commits made by the user in {0} ".format(language)
                             response["success"] = True
                             response["github_user_commits"] = commitsPerLanguage
+                            response["code_samples"] = []
+
+                            if commitsPerLanguage["items"] is not None:
+
+                                for commit in commitsPerLanguage["items"]:
+                                    userCodeUrl = commit["html_url"]
+                                    userCodeUrl = userCodeUrl.replace("github.com", "api.github.com")
+                                    userCodeUrl = userCodeUrl.replace("blob", "raw")
+
+                                    response["code_samples"].append({
+                                        "language" : language,
+                                        "code_url" : []
+                                    })
 
         except Exception as err:
             print("Failed to scrapUserInfoFromGithub {0}".format(err))

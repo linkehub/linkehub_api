@@ -14,20 +14,21 @@ from controllers.GithubController import GithubController
 app = Flask(__name__)
 
 # Routing
-@app.route('/')
+@app.route("/")
 def hello():
     return 'Linkehub API'
 
 '''
     Request info from github
 '''
-@app.route('/scrap_user_info_from_github/')
+@app.route("/scrap_user_info_from_github/")
 def scrapUserInfoFromGithub():
     try:
-        githubUserId = request.args.get('githubUserId')
+        githubUserId = request.args.get("githubUserId")
+        language = request.args.get("language")
 
         githubController = GithubController()
-        return githubController.scrapUserInfoFromGithub(githubUserId)
+        return githubController.scrapUserInfoFromGithub(githubUserId, language)
 
     except ValueError:
         return 'Failed to scrapUserInfoFromGithub'
