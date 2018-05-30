@@ -8,5 +8,10 @@ class NetworkingUtils():
 
     def __init__(self):
         # Global attributes related to SIOPS
-        self.SIOPS_BEAUTIFUL_SOUP_PARSER = 'html.parser'
-        self.SIOPS_RESPONSE_DATA_DECODER = 'iso8859-15'
+        self.JSON_PARSER = "json.parser"
+        self.HTML_PARSER = "html.parser"
+        self.UTF8_DECODER = "utf-8"
+        self.ISO8859_15_DECODER = "iso8859-15"
+
+        # Github urls
+        self.GITHUB_API_ROOT_URL = "api.github.com"

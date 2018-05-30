@@ -11,76 +11,94 @@ from bs4 import BeautifulSoup
 from utils.NetworkingUtils import NetworkingUtils
 
 '''
-    Make requests to scrap data from github
+    Make requests to scrap data from Github
 '''
 class GithubController():
 
     def __init__(self):
         self.netUtils = NetworkingUtils()
 
-    def scrapInfoFromGithub(self):
-        '''
-        urls = [
-            "fiocruz-app-oeds-api-dev.herokuapp.com"
-        ]
+    # TODO: Refactor this method
+    def scrapUserInfoFromGithub(self, userId):
+        response = {
+            "success" : False,
+            "msg" : "Failed to get information about this Github user",
+            "basic_github_user_info" : None,
+            "github_user_repos" : None,
+            "github_user_commits" : None
+        }
 
         try:
-            i = 1
-            while i == 1:
+            if not userId:
+                response["msg"] = "Invalid userId"
+            else:
+                # Desired information
+                basicUserInfo = None
+                userRepos = None
 
-                for url in urls:
-                    # Make a request to get the HTML which contains the list of Cities of SIOPS
-                    headers = {
-                        'cache-control': "no-cache"
-                    }
-                    conn = http.client.HTTPConnection(url)
-                    conn.request('GET', "", headers = headers)
+                # Create a connection with the Github API
+                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
 
-                    # Process the response
-                    res = conn.getresponse()
-                    data = res.read()
-                    text = data.decode(self.netUtils.SIOPS_RESPONSE_DATA_DECODER)
+                # GET basic info about the user
+                print("Requesting basic user info ...")
 
-                    print("{0} - response: {1}".format(datetime.datetime.utcnow(),text))
+                time.sleep(2)
+                connection.request("GET", "/search/users?q={0}".format(userId), headers={
+                    "cache-control": "no-cache",
+                    "User-Agent": "Linkehub-API"
+                })
 
-                print("\n")
+                res = connection.getresponse()
+                data = res.read()
+                basicUserInfo = json.loads(data.decode(self.netUtils.UTF8_DECODER))
 
-                time.sleep(60)
+                if basicUserInfo is not None:
+                    response["msg"] = "We got some basic info about the user from Github."
+                    response["success"] = True
+                    response["basic_github_user_info"] = basicUserInfo
 
-        except urllib.error.HTTPError:
-            print("Failed to pingService")
+                # GET the list of repositories of the user
+                print("Requesting list of repositories ...")
 
-        except urllib.error.URLError:
-            print("Failed to pingService")
+                time.sleep(2)
+                connection.request("GET", "/users/{0}/repos".format(userId), headers={
+                    "cache-control": "no-cache",
+                    "User-Agent": "Linkehub-API"
+                })
 
-        finally:
+                res = connection.getresponse()
+                data = res.read()
+                userRepos = json.loads(data.decode(self.netUtils.UTF8_DECODER))
 
-            return ""
-        '''
+                if userRepos is not None:
+                    response["msg"] = response["msg"] + " We also got the list of repositories"
+                    response["success"] = True
+                    response["github_user_repos"] = userRepos
 
-        try:
-            # Make a request to get the HTML which contains the list of Cities of SIOPS
-            url = ""
-                    
-            headers = {
-                'cache-control': "no-cache"
-            }
-            conn = http.client.HTTPConnection(url)
-            conn.request('GET', "", headers = headers)
+                    for repo in userRepos:
+                        language = repo["language"]
+                        fullName = repo["full_name"]
+                        
+                        # GET user commits x repo x language
+                        print("Requesting list of commits of each repository ...")
 
-            # Process the response
-            res = conn.getresponse()
-            data = res.read()
-            text = data.decode(self.netUtils.SIOPS_RESPONSE_DATA_DECODER)
+                        time.sleep(5)
+                        connection.request("GET", "/search/code?q=language:{0}+repo:{1}".format(language, fullName), headers={
+                            "cache-control": "no-cache",
+                            "User-Agent": "Linkehub-API"
+                        })
 
-            print("{0} - response: {1}".format(datetime.datetime.utcnow(),text))
+                        res = connection.getresponse()
+                        data = res.read()
+                        commitsPerLanguage = json.loads(data.decode(self.netUtils.UTF8_DECODER))
 
-        except urllib.error.HTTPError:
-            print("Failed to pingService")
+                        if commitsPerLanguage is not None:
+                            response["msg"] = response["msg"] + " We also got commits made by the user in {0}".format(language)
+                            response["success"] = True
+                            response["github_user_commits"] = commitsPerLanguage
 
-        except urllib.error.URLError:
-            print("Failed to pingService")
+        except Exception as err:
+            print("Failed to scrapUserInfoFromGithub {0}".format(err))
 
-        finally:
-
-            return "Done scraping info"
+        return json.dumps(response)
+    #./TODO

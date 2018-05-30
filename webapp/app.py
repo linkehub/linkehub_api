@@ -21,14 +21,16 @@ def hello():
 '''
     Request info from github
 '''
-@app.route('/scrap_info_from_github/')
-def scrapInfoFromGithub():
+@app.route('/scrap_user_info_from_github/')
+def scrapUserInfoFromGithub():
     try:
+        githubUserId = request.args.get('githubUserId')
+
         githubController = GithubController()
-        return githubController.scrapInfoFromGithub()
+        return githubController.scrapUserInfoFromGithub(githubUserId)
 
     except ValueError:
-        return 'Failed to scrapInfoFromGithub'
+        return 'Failed to scrapUserInfoFromGithub'
 
 '''
     Initilization
