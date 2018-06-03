@@ -110,8 +110,9 @@ class GithubController():
                         if storeInDb:
 
                             for user in listUsers:
+                                user["location"] = location
                                 self.dbManager.storeBasicUserInfoFromGithub(token, user)
-                            
+
                             response["stored_in_db"] = True
 
         except Exception as err:
