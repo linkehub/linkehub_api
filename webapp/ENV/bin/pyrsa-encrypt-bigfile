@@ -1,6 +1,5 @@
-#!/bin/sh
-'''exec' "/Users/diego/Documents/Projects/FioCruz EaD - App OEDS/API/webapp/ENV/bin/python" "$0" "$@"
-' '''
+#!/Users/diego/Documents/Projects/Linkehub/API/linkehub_api_i1/webapp/ENV/bin/python
+
 # -*- coding: utf-8 -*-
 import re
 import sys

@@ -17,11 +17,8 @@ app = Flask(__name__)
 # Routing
 @app.route("/")
 def hello():
-    return 'Linkehub API'
+    return "Linkehub API"
 
-'''
-    Returns a valid access token after a successful login
-'''
 @app.route("/login", methods=["POST"])
 def login():
     try:
@@ -42,6 +39,16 @@ def hasExpiredRequestsPerHourGithub():
 
     except ValueError:
         return 'Failed to verify if hasExpiredRequestsPerHourGithub'
+
+'''
+@app.route("/get_github_users_from_city")
+def getGithubUsersFromCity():
+    try:
+        
+
+    except ValueError:
+        return 'Failed to getGithubUsersFromCity'
+'''
 
 @app.route("/scrap_basic_user_info_from_github/")
 def scrapBasicUserInfoFromGithub():

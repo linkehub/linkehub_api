@@ -1,4 +1,4 @@
-#!/Users/diego/Documents/Projects/Linkhub/API/webapp/ENV/bin/python
+#!/Users/diego/Documents/Projects/Linkehub/API/linkehub_api_i1/webapp/ENV/bin/python
 
 import sys
 import getopt

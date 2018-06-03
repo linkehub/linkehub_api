@@ -35,7 +35,7 @@ class AuthController():
                 token = self.dbManager.login(username, password)
 
                 if token:
-                    response["msg"] = "Success. This is your access token: to not share it with anyone!",
+                    response["msg"] = "Success. This is your access token: to not share it with anyone!"
                     response["access_token"] = token
                     response["created_at"] = self.logger.get_utc_iso_timestamp()
 

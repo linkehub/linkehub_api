@@ -40,7 +40,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/diego/Documents/Projects/Linkhub/API/webapp/ENV"
+VIRTUAL_ENV="/Users/diego/Documents/Projects/Linkehub/API/linkehub_api_i1/webapp/ENV"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
