@@ -64,6 +64,62 @@ class GithubController():
         return json.dumps(response)
 
     '''
+       Returns a list of Github users from a given location.
+    '''
+    def getGithubUsersFromLocation(self, token, storeInDb, location, pageNumber):
+        response = {
+            "success" : False,
+            "msg" : "Failed to get the list of Github users from the given location",
+            "total_count" : -1,
+            "stored_in_db" : False,
+            "users" : []
+        }
+
+        try:
+
+            if not token or not location or not pageNumber:
+                response["msg"] = "{0}. {1}".format(response["msg"], "Invalid input parameters")
+            else:
+                # Create a connection with the Github API
+                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
+
+                # Make a request to get the list of users from a location
+                print("Making request to the get the list of Github users from a location ...")
+
+                connection.request("GET", "/search/users?q=location:{0}&page={1}".format(location, pageNumber), headers={
+	                "cache-control": "no-cache",
+	                "User-Agent": "Linkehub-API",
+	                "Accept": "application/vnd.github.v3+json"
+	            })
+
+                res = connection.getresponse()
+                data = res.read()
+                githubApiResponse = json.loads(data.decode(self.netUtils.UTF8_DECODER))
+
+                if githubApiResponse is not None:
+
+                    if "items" in githubApiResponse and "total_count" in githubApiResponse:
+                        listUsers = githubApiResponse["items"]
+
+                        response["total_count"] = githubApiResponse["total_count"]
+                        response["success"] = True
+                        response["msg"] = "We got a list of users from {0} ".format(location)
+                        response["users"] = listUsers
+
+                        # Store the list of users in the database
+                        if storeInDb:
+
+                            for user in listUsers:
+                                self.dbManager.storeBasicUserInfoFromGithub(token, user)
+                            
+                            response["stored_in_db"] = True
+
+        except Exception as err:
+            print("Failed to getGithubUsersFromLocation {0}".format(err))
+
+        return json.dumps(response)
+
+    '''
         Scrap the profile info of a Github user
     '''
     def scrapBasicUserInfoFromGithub(self, token, userId):

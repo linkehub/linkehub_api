@@ -17,7 +17,7 @@ app = Flask(__name__)
 # Routing
 @app.route("/")
 def hello():
-    return "Linkehub API"
+    return "Linkehub API - know about the best jobs in your city that match your coding profile"
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -40,15 +40,19 @@ def hasExpiredRequestsPerHourGithub():
     except ValueError:
         return 'Failed to verify if hasExpiredRequestsPerHourGithub'
 
-'''
-@app.route("/get_github_users_from_city")
-def getGithubUsersFromCity():
+@app.route("/get_github_users_from_location/")
+def getGithubUsersFromLocation():
     try:
+        token = request.headers.get("access_token")
+        storeInDb = request.args.get("store_in_db")
+        location = request.args.get("location")
+        pageNumber = request.args.get("page_number")
         
+        githubController = GithubController()
+        return githubController.getGithubUsersFromLocation(token, storeInDb, location, pageNumber)
 
     except ValueError:
-        return 'Failed to getGithubUsersFromCity'
-'''
+        return 'Failed to getGithubUsersFromLocation'
 
 @app.route("/scrap_basic_user_info_from_github/")
 def scrapBasicUserInfoFromGithub():
