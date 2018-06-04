@@ -122,7 +122,8 @@ class GithubController():
                                 user["location"] = location
 
                                 # Store the basic user profile into the database
-                                profileResponse = self.scrapBasicUserInfoFromGithub(token, user["login"])
+                                if "login" in user:
+                                    self.dbManager.storeBasicUserInfoFromGithub(token, user)
 
                             if profileResponse["success"]:
                                 response["success"] = True
@@ -138,7 +139,7 @@ class GithubController():
     '''
         Scrap the profile info of a Github user
     '''
-    def scrapBasicUserInfoFromGithub(self, token, userId):
+    def scrapUserRepositoriesSkilsFromGithub(self, token, userId):
         response = {
             "success" : False,
             "msg" : "Failed to get profile info of the given Github user",
@@ -153,36 +154,6 @@ class GithubController():
             else:
                 # Create a connection with the Github API
                 connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
-
-                # GET the basic profile info of a user
-                print("Requesting basic user info ...")
-
-                headers = {
-                    "cache-control": "no-cache",
-	                "User-Agent": "Linkehub-API",
-	                "Accept": "application/vnd.github.v3+json"
-                }
-                endpoint = "/search/users?q={0}".format(
-                    urllib.parse.quote(userId)
-                )
-
-                connection.request("GET", endpoint, headers=headers)
-
-                res = connection.getresponse()
-                data = res.read()
-                basicUserInfo = json.loads(data.decode(self.netUtils.UTF8_DECODER))
-
-                if basicUserInfo is not None:
-
-                    if "items" in basicUserInfo:
-                        basicUserInfo = basicUserInfo["items"][0]
-
-                        response["msg"] = "We got some basic info about the user from Github. "
-                        response["success"] = True
-                        response["basic_github_user_info"] = basicUserInfo
-
-                        # Store the basic Github user profile into the database
-                        self.dbManager.storeBasicUserInfoFromGithub(token, basicUserInfo)
 
                 # GET the list of repositories of the user
                 print("Requesting list of repositories ...")

@@ -17,7 +17,7 @@ app = Flask(__name__)
 # Routing
 @app.route("/")
 def hello():
-    return "Linkehub API - know about the best jobs in your city that match your coding profile. v0.0.2"
+    return "Linkehub API - know about the best jobs in your city that match your coding profile. v0.0.4"
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -66,17 +66,17 @@ def getGithubUserIdsFromLocation():
     except ValueError:
         return 'Failed to getGithubUserIdsFromLocation'
 
-@app.route("/scrap_basic_user_info_from_github/")
-def scrapBasicUserInfoFromGithub():
+@app.route("/scrap_user_repositories_skils_from_github/")
+def scrapUserRepositoriesSkilsFromGithub():
     try:
         token = request.headers.get("access_token")
         githubUserId = request.args.get("githubUserId")
 
         githubController = GithubController()
-        return githubController.scrapBasicUserInfoFromGithub(token, githubUserId)
+        return githubController.scrapUserRepositoriesSkilsFromGithub(token, githubUserId)
 
     except ValueError:
-        return 'Failed to scrapBasicUserInfoFromGithub'
+        return 'Failed to scrapUserRepositoriesSkilsFromGithub'
 
 @app.route("/scrap_user_commits_repo_language_github/")
 def scrapUserCommitsRepoLanguageFromGithub():
