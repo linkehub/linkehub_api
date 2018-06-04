@@ -80,6 +80,19 @@ def scrapUserCommitsRepoLanguageFromGithub():
     except ValueError:
         return 'Failed to scrapUserCommitsRepoLanguageFromGithub'
 
+@app.route("/scrap_user_commits_language_github/")
+def scrapUserCommitsLanguageFromGithub():
+    try:
+        token = request.headers.get("access_token")
+        githubUserId = request.args.get("githubUserId")
+        language = request.args.get("language")
+
+        githubController = GithubController()
+        return githubController.scrapUserCommitsLanguageFromGithub(token, githubUserId, language)
+
+    except ValueError:
+        return 'Failed to scrapUserCommitsLanguageFromGithub'
+
 '''
     Initilization
 '''

@@ -86,11 +86,17 @@ class GithubController():
                 # Make a request to get the list of users from a location
                 print("Making request to the get the list of Github users from a location ...")
 
-                connection.request("GET", "/search/users?q=location:{0}&page={1}".format(location, pageNumber), headers={
-	                "cache-control": "no-cache",
+                headers = {
+                    "cache-control": "no-cache",
 	                "User-Agent": "Linkehub-API",
 	                "Accept": "application/vnd.github.v3+json"
-	            })
+                }
+                endpoint = "/search/users?q=location:{0}&page={1}".format(
+                    urllib.parse.quote(location),
+                    urllib.parse.quote(pageNumber)
+                )
+                
+                connection.request("GET", endpoint, headers=headers)
 
                 res = connection.getresponse()
                 data = res.read()
@@ -142,11 +148,16 @@ class GithubController():
                 # GET the basic profile info of a user
                 print("Requesting basic user info ...")
 
-                connection.request("GET", "/search/users?q={0}".format(userId), headers={
+                headers = {
                     "cache-control": "no-cache",
-                    "User-Agent": "Linkehub-API",
-                    "Accept": "application/vnd.github.v3+json"
-                })
+	                "User-Agent": "Linkehub-API",
+	                "Accept": "application/vnd.github.v3+json"
+                }
+                endpoint = "/search/users?q={0}".format(
+                    urllib.parse.quote(userId)
+                )
+
+                connection.request("GET", endpoint, headers=headers)
 
                 res = connection.getresponse()
                 data = res.read()
@@ -167,11 +178,16 @@ class GithubController():
                 # GET the list of repositories of the user
                 print("Requesting list of repositories ...")
 
-                connection.request("GET", "/users/{0}/repos".format(userId), headers={
+                headers = {
                     "cache-control": "no-cache",
-                    "User-Agent": "Linkehub-API",
-                    "Accept": "application/vnd.github.v3+json"
-                })
+	                "User-Agent": "Linkehub-API",
+	                "Accept": "application/vnd.github.v3+json"
+                }
+                endpoint = "/users/{0}/repos".format(
+                    urllib.parse.quote(userId)
+                )
+
+                connection.request("GET", endpoint, headers=headers)
 
                 res = connection.getresponse()
                 data = res.read()
@@ -189,10 +205,12 @@ class GithubController():
                         print("Requesting list of languages of a repository ...")
                         
                         if "languages_url" in repo:
-                            connection.request("GET", repo["languages_url"], headers={
+                            headers = {
                                 "cache-control": "no-cache",
-                                "User-Agent": "Linkehub-API"
-                            })
+                                "User-Agent": "Linkehub-API",
+                                "Accept": "application/vnd.github.v3+json"
+                            }
+                            connection.request("GET", repo["languages_url"], headers=headers)
 
                             res = connection.getresponse()
                             data = res.read()
@@ -237,13 +255,18 @@ class GithubController():
                 connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
 
                 # GET user commits x repo x language
-                url = "/search/code?q=language:{0}+repo:{1}/{2}".format(language, userId, repo)
-
-                connection.request("GET", url, headers={
+                headers = {
                     "cache-control": "no-cache",
-                    "User-Agent": "Linkehub-API",
-                    "Accept": "application/vnd.github.v3+json"
-                })
+	                "User-Agent": "Linkehub-API",
+	                "Accept": "application/vnd.github.v3+json"
+                }
+                endpoint = "/search/code?q=language:{0}+repo:{1}/{2}".format(
+                    urllib.parse.quote(language),
+                    urllib.parse.quote(userId),
+                    urllib.parse.quote(repo)
+                )
+
+                connection.request("GET", endpoint, headers=headers)
 
                 res = connection.getresponse()
                 data = res.read()
@@ -253,31 +276,120 @@ class GithubController():
                 if commitsPerLanguage is not None:
                     
                     if "items" in commitsPerLanguage:
+                        userCommits = {}
+                        codeSamples = {}
 
                         for commit in commitsPerLanguage["items"]:
 
-                            # Clean the list of commits
-                            if "repository" in commit:
-                                del commit["repository"]
+                            if "sha" in commit:
+                                userCommits[commit["sha"]] = commit
 
-                            # Create a link to the actual file in which the user commited
-                            userCodeUrl = commit["html_url"]
-                            userCodeUrl = userCodeUrl.replace("api.github.com", "github.com")
-                            userCodeUrl = userCodeUrl.replace("blob", "raw")
+                                # Clean the list of commits
+                                if "repository" in commit:
+                                    del commit["repository"]
 
-                            response["code_samples"].append({
-                                "commit_sha" : commit["sha"],
-                                "language"   : language,
-                                "code_url"   : userCodeUrl
-                            })
+                                # Create a link to the actual file in which the user commited
+                                userCodeUrl = commit["html_url"]
+                                userCodeUrl = userCodeUrl.replace("api.github.com", "github.com")
+                                userCodeUrl = userCodeUrl.replace("blob", "raw")
+
+                                codeSample = {
+                                    "commit_sha" : commit["sha"],
+                                    "language"   : language,
+                                    "code_url"   : userCodeUrl
+                                }
+                                codeSamples[commit["sha"]] = codeSample
+
+                                response["code_samples"].append(codeSample)
 
                         # Fetch a success message
                         response["msg"] = "We got a few commits made by the user in {0} ".format(language)
                         response["success"] = True
-                        response["github_user_commits"] = commitsPerLanguage
+                        response["github_user_commits"] = userCommits
 
                         # Stores the user commits and code samples from Github on the database
-                        self.dbManager.storeUserCommitsLanguageOnGithubRepo(token, userId, response["github_user_commits"], response["code_samples"])
+                        self.dbManager.storeUserCommitsLanguageOnGithubRepo(token, userId, userCommits, codeSamples)
+
+        except Exception as err:
+            print("Failed to scrapUserCommitsRepoLanguageFromGithub {0}".format(err))
+
+        return json.dumps(response)
+
+    '''
+        Scrap the commits of a Github user made using a given language
+    '''
+    def scrapUserCommitsLanguageFromGithub(self, token, userId, language):
+        response = {
+            "success" : False,
+            "msg" : "Failed to get the commits and code samples of this Github user",
+            "github_user_commits" : "",
+            "code_samples" : []
+        }
+
+        try:
+
+            if not userId or not language:
+                response["msg"] = "Invalid input parameters"
+            else:
+                print("Requesting list of commits made using a specific language ...")
+
+                # Create a connection with the Github API
+                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
+
+                # GET user commits x language
+                headers = {
+                    "cache-control": "no-cache",
+	                "User-Agent": "Linkehub-API",
+	                "Accept": "application/vnd.github.v3+json"
+                }
+                endpoint = "/search/code?q=language:{0}+user:{1}".format(
+                    urllib.parse.quote(language),
+                    urllib.parse.quote(userId)
+                )
+
+                connection.request("GET", endpoint, headers=headers)
+
+                res = connection.getresponse()
+                data = res.read()
+                commitsPerLanguage = json.loads(data.decode(self.netUtils.UTF8_DECODER))
+
+                # Fetch the results that are going to be stored in the database
+                if commitsPerLanguage is not None:
+                    
+                    if "items" in commitsPerLanguage:
+                        userCommits = {}
+                        codeSamples = {}
+
+                        for commit in commitsPerLanguage["items"]:
+
+                            if "sha" in commit:
+                                userCommits[commit["sha"]] = commit
+
+                                # Clean the list of commits
+                                if "repository" in commit:
+                                    del commit["repository"]
+
+                                # Create a link to the actual file in which the user commited
+                                userCodeUrl = commit["html_url"]
+                                userCodeUrl = userCodeUrl.replace("api.github.com", "github.com")
+                                userCodeUrl = userCodeUrl.replace("blob", "raw")
+
+                                codeSample = {
+                                    "commit_sha" : commit["sha"],
+                                    "language"   : language,
+                                    "code_url"   : userCodeUrl
+                                }
+                                codeSamples[commit["sha"]] = codeSample
+
+                                response["code_samples"].append(codeSample)
+
+                        # Fetch a success message
+                        response["msg"] = "We got a few commits made by the user in {0} ".format(language)
+                        response["success"] = True
+                        response["github_user_commits"] = userCommits
+
+                        # Stores the user commits and code samples from Github on the database
+                        self.dbManager.storeUserCommitsLanguageOnGithubRepo(token, userId, userCommits, codeSamples)
 
         except Exception as err:
             print("Failed to scrapUserCommitsRepoLanguageFromGithub {0}".format(err))

@@ -60,7 +60,7 @@ class DBManager():
                     githubProfile["queried_at"] = self.logger.get_utc_iso_timestamp()
 
                     db = self.firebase.database()
-                    db.child("github_profiles").child(githubProfile["login"]).child("profile").set(githubProfile, token)
+                    db.child("github_profiles").child(githubProfile["login"]).child("profile").update(githubProfile, token)
                     
                     status = True
 
@@ -79,7 +79,7 @@ class DBManager():
 
             if repos:
                 db = self.firebase.database()
-                db.child("github_profiles").child(userId).child("repos").set(repos, token)
+                db.child("github_profiles").child(userId).child("repos").update(repos, token)
                     
                 status = True
 
@@ -98,13 +98,13 @@ class DBManager():
 
             if commitsPerLanguage:
                 dbCommits = self.firebase.database()
-                dbCommits.child("github_profiles").child(userId).child("commits").set(commitsPerLanguage, token)
+                dbCommits.child("github_profiles").child(userId).child("commits").update(commitsPerLanguage, token)
 
                 status = True
 
             if codeSamples:
                 dbCodeSamples = self.firebase.database()
-                dbCodeSamples.child("github_profiles").child(userId).child("code_samples").set(codeSamples, token)
+                dbCodeSamples.child("github_profiles").child(userId).child("code_samples").update(codeSamples, token)
 
         except Exception as e:
             print("Failed to storeUserCommitsLanguageOnGithubRepo: {0}".format(e))
