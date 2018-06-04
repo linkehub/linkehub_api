@@ -54,6 +54,18 @@ def getGithubUsersFromLocation():
     except ValueError:
         return 'Failed to getGithubUsersFromLocation'
 
+@app.route("/get_github_user_ids_from_location/")
+def getGithubUserIdsFromLocation():
+    try:
+        token = request.headers.get("access_token")
+        location = request.args.get("location")
+
+        githubController = GithubController()
+        return githubController.getGithubUserIdsFromLocation(token, location)
+
+    except ValueError:
+        return 'Failed to getGithubUserIdsFromLocation'
+
 @app.route("/scrap_basic_user_info_from_github/")
 def scrapBasicUserInfoFromGithub():
     try:

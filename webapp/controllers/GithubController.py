@@ -117,7 +117,9 @@ class GithubController():
 
                             for user in listUsers:
                                 user["location"] = location
-                                self.dbManager.storeBasicUserInfoFromGithub(token, user)
+
+                                # Store the basic user profile into the database
+                                self.scrapBasicUserInfoFromGithub(token, user["login"])
 
                             response["stored_in_db"] = True
 
@@ -139,7 +141,7 @@ class GithubController():
 
         try:
 
-            if not userId:
+            if not token or not userId:
                 response["msg"] = "Invalid userId"
             else:
                 # Create a connection with the Github API
@@ -191,38 +193,46 @@ class GithubController():
 
                 res = connection.getresponse()
                 data = res.read()
-                userRepos = json.loads(data.decode(self.netUtils.UTF8_DECODER))
+                userReposResponse = json.loads(data.decode(self.netUtils.UTF8_DECODER))
 
-                if userRepos is not None:
+                if userReposResponse is not None:
+                    userRepos = {}
                     
-                    for repo in userRepos:
+                    if isinstance(userReposResponse, list):
 
-                        # Clean the repo
-                        if "owner" in repo:
-                            del repo["owner"]
+                        for repo in userReposResponse:
 
-                        # GET the list of languages of a repo
-                        print("Requesting list of languages of a repository ...")
-                        
-                        if "languages_url" in repo:
-                            headers = {
-                                "cache-control": "no-cache",
-                                "User-Agent": "Linkehub-API",
-                                "Accept": "application/vnd.github.v3+json"
-                            }
-                            connection.request("GET", repo["languages_url"], headers=headers)
+                            # Clean the repo
+                            if "owner" in repo:
+                                del repo["owner"]
 
-                            res = connection.getresponse()
-                            data = res.read()
-                            repoLanguages = json.loads(data.decode(self.netUtils.UTF8_DECODER))
+                            # GET the list of languages of a repo
+                            print("Requesting list of languages of a repository ...")
+                            
+                            if "languages_url" in repo:
+                                headers = {
+                                    "cache-control": "no-cache",
+                                    "User-Agent": "Linkehub-API",
+                                    "Accept": "application/vnd.github.v3+json"
+                                }
+                                connection.request("GET", repo["languages_url"], headers=headers)
 
-                            if repoLanguages is not None:
-                                repo["languages"] = repoLanguages
+                                res = connection.getresponse()
+                                data = res.read()
+                                repoLanguages = json.loads(data.decode(self.netUtils.UTF8_DECODER))
 
-                    # Fetch a success message
-                    response["msg"] = response["msg"] + " We also got the list of repositories. "
-                    response["success"] = True
-                    response["github_user_repos"] = userRepos
+                                if repoLanguages is not None:
+                                    repo["languages"] = repoLanguages
+
+                                # Upsert the list of languages of the user
+                                self.dbManager.storeGithubUserSkills(token, userId, repoLanguages)
+
+                            userRepos[repo["name"]] = repo
+
+                        # Fetch a success message
+                        response["msg"] = response["msg"] + " We also got the list of repositories. "
+                        response["success"] = True
+                        response["github_user_repos"] = userRepos
 
                     # Store the list of repositories of the user into the database
                     self.dbManager.storeReposGithubUser(token, userId, userRepos)
@@ -231,7 +241,6 @@ class GithubController():
             print("Failed to scrapBasicUserInfoFromGithub {0}".format(err))
 
         return json.dumps(response)
-
 
     '''
         Scrap the commits of a Github user made on a given language on a given repository
@@ -393,5 +402,38 @@ class GithubController():
 
         except Exception as err:
             print("Failed to scrapUserCommitsRepoLanguageFromGithub {0}".format(err))
+
+        return json.dumps(response)
+
+    '''
+        Get a list of ids of Github users from a location
+    '''
+    def getGithubUserIdsFromLocation(self, token, location):
+        response = {
+            "success" : False,
+            "msg" : "Failed to get a list of github user ids",
+            "github_user_ids" : ""
+        }
+
+        try:
+
+            if not token or not location:
+                response["msg"] = "Invalid input parameters"
+            else:
+                print("Requesting list of github user ids ...")
+
+                # GET the list of ids from the project DB
+                githubUserIds = self.dbManager.getListGithubUserIdsFromLocation(location)
+                
+                # Fetch a valid response to the user
+                if githubUserIds is not None:
+                    
+                    # Fetch a success message
+                    response["msg"] = "We got a list of github user ids from {0} ".format(location)
+                    response["success"] = True
+                    response["github_user_ids"] = githubUserIds
+
+        except Exception as err:
+            print("Failed to getGithubUserIdsFromLocation {0}".format(err))
 
         return json.dumps(response)

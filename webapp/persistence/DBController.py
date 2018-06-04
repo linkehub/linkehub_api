@@ -60,7 +60,7 @@ class DBManager():
                     githubProfile["queried_at"] = self.logger.get_utc_iso_timestamp()
 
                     db = self.firebase.database()
-                    db.child("github_profiles").child(githubProfile["login"]).child("profile").update(githubProfile, token)
+                    db.child("github_profiles").child(githubProfile["login"]).update(githubProfile, token)
                     
                     status = True
 
@@ -80,11 +80,30 @@ class DBManager():
             if repos:
                 db = self.firebase.database()
                 db.child("github_profiles").child(userId).child("repos").update(repos, token)
-                    
+
                 status = True
 
         except Exception as e:
             print("Failed to storeReposGithubUser: {0}".format(e))
+
+        return status
+
+    '''
+        Upsert the list of skills of the user
+    '''
+    def storeGithubUserSkills(self, token, userId, skills):
+        status = False
+
+        try:
+
+            if token and userId and skills:
+                db = self.firebase.database()
+                db.child("github_profiles").child(userId).child("skills").update(skills, token)
+
+                status = True
+
+        except Exception as e:
+            print("Failed to storeGithubUserSkills: {0}".format(e))
 
         return status
 
@@ -112,19 +131,25 @@ class DBManager():
         return status
 
     '''
-       Todo: >>>>> 
+       Return a list of Github user ids that were associated to a given location on the moment of the storage
     '''
-    def storeLinkedinProfile(self, linkedinProfile):
-        status = True
+    def getListGithubUserIdsFromLocation(self, location):
+        userIds = []
 
         try:
 
-            if linkedinProfile:
+            if location:
                 db = self.firebase.database()
-                db.child("linkedin_profiles").set(linkedinProfile)
+                baseUrlGithubProfiles = db.child("github_profiles")
+                profiles = baseUrlGithubProfiles.order_by_child('location').equal_to(location).get()
+
+                for profile in profiles.each():
+                    dbObject = profile.val()
+
+                    if dbObject is not None:
+                        userIds.append(dbObject['login'])
 
         except  Exception as e:
-            print("Failed to storeLinkedinProfile: {0}".format(e))
-            status = False
+            print("Failed to getListGithubUserIdsFromLocation: {0}".format(e))
 
-        return status
+        return userIds
