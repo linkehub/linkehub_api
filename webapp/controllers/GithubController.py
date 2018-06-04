@@ -161,6 +161,8 @@ class GithubController():
 
                 connection.request("GET", endpoint, headers=headers)
 
+                time.sleep(1)
+
                 res = connection.getresponse()
                 data = res.read()
                 basicUserInfo = json.loads(data.decode(self.netUtils.UTF8_DECODER))
@@ -190,6 +192,8 @@ class GithubController():
                 )
 
                 connection.request("GET", endpoint, headers=headers)
+
+                time.sleep(1)
 
                 res = connection.getresponse()
                 data = res.read()
@@ -226,6 +230,8 @@ class GithubController():
 
                                 # Upsert the list of languages of the user
                                 self.dbManager.storeGithubUserSkills(token, userId, repoLanguages)
+
+                                time.sleep(1)
 
                             userRepos[repo["name"]] = repo
 
