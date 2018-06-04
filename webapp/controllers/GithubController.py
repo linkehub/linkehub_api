@@ -7,6 +7,7 @@ import urllib
 import json
 
 from utils.NetworkingUtils import NetworkingUtils
+from utils.StringUtils import StringUtils
 from persistence.DBController import DBManager
 
 '''
@@ -114,14 +115,20 @@ class GithubController():
 
                         # Store the list of users in the database
                         if storeInDb:
+                            profileResponse = {}
+                            profileResponse["success"] = False
 
                             for user in listUsers:
                                 user["location"] = location
 
                                 # Store the basic user profile into the database
-                                self.scrapBasicUserInfoFromGithub(token, user["login"])
+                                profileResponse = self.scrapBasicUserInfoFromGithub(token, user["login"])
 
-                            response["stored_in_db"] = True
+                            if profileResponse["success"]:
+                                response["success"] = True
+                                response["msg"] = "Stored user profile"
+                                response["stored_in_db"] = True
+                                response["users"] = listUsers
 
         except Exception as err:
             print("Failed to getGithubUsersFromLocation {0}".format(err))
@@ -161,8 +168,6 @@ class GithubController():
 
                 connection.request("GET", endpoint, headers=headers)
 
-                time.sleep(1)
-
                 res = connection.getresponse()
                 data = res.read()
                 basicUserInfo = json.loads(data.decode(self.netUtils.UTF8_DECODER))
@@ -193,8 +198,6 @@ class GithubController():
 
                 connection.request("GET", endpoint, headers=headers)
 
-                time.sleep(1)
-
                 res = connection.getresponse()
                 data = res.read()
                 userReposResponse = json.loads(data.decode(self.netUtils.UTF8_DECODER))
@@ -206,27 +209,68 @@ class GithubController():
                     if isinstance(userReposResponse, list):
 
                         for repo in userReposResponse:
+                            cleanedRepo = {}
+                            strUtils = StringUtils()
 
                             # Clean the repo
-                            if "owner" in repo:
-                                del repo["owner"]
+                            if "id" in repo:
+                                cleanedRepo["id"] = strUtils.getCleanedJsonValue(repo["id"])
 
-                            # Get only the main language of the repo and append it to the list of languages of the user
+                            if "name" in repo:
+                                cleanedRepo["name"] = strUtils.getCleanedJsonValue(repo["name"])
+
                             if "language" in repo:
+                                cleanedRepo["language"] = strUtils.getCleanedJsonValue(repo["language"])
 
-                                if repo["language"] is not None:
-                                    userLanguages[(repo["language"])] = True
+                            if "full_name" in repo:
+                                cleanedRepo["full_name"] = strUtils.getCleanedJsonValue(repo["full_name"])
 
-                            # Upsert the list of languages of the user
-                            self.dbManager.storeGithubUserSkills(token, userId, userLanguages)
+                            if "private" in repo:
+                                cleanedRepo["private"] = strUtils.getCleanedJsonValue(repo["private"])
 
-                            userRepos[repo["name"]] = repo
+                            if "html_url" in repo:
+                                cleanedRepo["html_url"] = strUtils.getCleanedJsonValue(repo["html_url"])
+
+                            if "description" in repo:
+                                cleanedRepo["description"] = strUtils.getCleanedJsonValue(repo["description"])
+
+                            if "url" in repo:
+                                cleanedRepo["url"] = strUtils.getCleanedJsonValue(repo["url"])
+
+                            if "collaborators_url" in repo:
+                                cleanedRepo["collaborators_url"] = strUtils.getCleanedJsonValue(repo["collaborators_url"])
+
+                            if "languages_url" in repo:
+                                cleanedRepo["languages_url"] = strUtils.getCleanedJsonValue(repo["languages_url"])
+
+                            if "subscribers_url" in repo:
+                                cleanedRepo["subscribers_url"] = strUtils.getCleanedJsonValue(repo["subscribers_url"])
+
+                            if "commits_url" in repo:
+                                cleanedRepo["commits_url"] = strUtils.getCleanedJsonValue(repo["commits_url"])
+
+                            if "updated_at" in repo:
+                                cleanedRepo["updated_at"] = strUtils.getCleanedJsonValue(repo["updated_at"])
+                            
+                            # Get only the main language of the repo and append it to the list of languages of the user
+                            if "language" in cleanedRepo:
+
+                                if cleanedRepo["language"] is not None:
+                                    userLanguages[cleanedRepo["language"]] = True
+
+                            userRepos[cleanedRepo["name"]] = cleanedRepo
 
                         # Fetch a success message
                         response["msg"] = response["msg"] + " We also got the list of repositories. "
                         response["success"] = True
                         response["github_user_repos"] = userRepos
                         response["user_languages"] = userLanguages
+
+                    # Upsert the list of languages of the user
+                    userLanguages = json.loads(json.dumps(userLanguages))
+                    userRepos = json.loads(json.dumps(userRepos))
+
+                    self.dbManager.storeGithubUserSkills(token, userId, userLanguages)
 
                     # Store the list of repositories of the user into the database
                     self.dbManager.storeReposGithubUser(token, userId, userRepos)

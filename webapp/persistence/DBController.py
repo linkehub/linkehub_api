@@ -79,7 +79,7 @@ class DBManager():
 
             if repos:
                 db = self.firebase.database()
-                db.child("github_profiles").child(userId).child("repos").update(repos, token)
+                db.child("github_profiles").child(userId).child("repos").set(repos, token)
 
                 status = True
 
@@ -98,7 +98,7 @@ class DBManager():
 
             if token and userId and skills:
                 db = self.firebase.database()
-                db.child("github_profiles").child(userId).child("skills").update(skills, token)
+                db.child("github_profiles").child(userId).child("skills").set(skills, token)
 
                 status = True
 
