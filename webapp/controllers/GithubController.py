@@ -201,6 +201,7 @@ class GithubController():
 
                 if userReposResponse is not None:
                     userRepos = {}
+                    userLanguages = {}
                     
                     if isinstance(userReposResponse, list):
 
@@ -210,28 +211,14 @@ class GithubController():
                             if "owner" in repo:
                                 del repo["owner"]
 
-                            # GET the list of languages of a repo
-                            print("Requesting list of languages of a repository ...")
-                            
-                            if "languages_url" in repo:
-                                headers = {
-                                    "cache-control": "no-cache",
-                                    "User-Agent": "Linkehub-API",
-                                    "Accept": "application/vnd.github.v3+json"
-                                }
-                                connection.request("GET", repo["languages_url"], headers=headers)
+                            # Get only the main language of the repo and append it to the list of languages of the user
+                            if "language" in repo:
 
-                                res = connection.getresponse()
-                                data = res.read()
-                                repoLanguages = json.loads(data.decode(self.netUtils.UTF8_DECODER))
+                                if repo["language"] is not None:
+                                    userLanguages[(repo["language"])] = True
 
-                                if repoLanguages is not None:
-                                    repo["languages"] = repoLanguages
-
-                                # Upsert the list of languages of the user
-                                self.dbManager.storeGithubUserSkills(token, userId, repoLanguages)
-
-                                time.sleep(1)
+                            # Upsert the list of languages of the user
+                            self.dbManager.storeGithubUserSkills(token, userId, userLanguages)
 
                             userRepos[repo["name"]] = repo
 
@@ -239,6 +226,7 @@ class GithubController():
                         response["msg"] = response["msg"] + " We also got the list of repositories. "
                         response["success"] = True
                         response["github_user_repos"] = userRepos
+                        response["user_languages"] = userLanguages
 
                     # Store the list of repositories of the user into the database
                     self.dbManager.storeReposGithubUser(token, userId, userRepos)
