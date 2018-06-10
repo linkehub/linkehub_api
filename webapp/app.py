@@ -66,17 +66,30 @@ def getGithubUserIdsFromLocation():
     except ValueError:
         return 'Failed to getGithubUserIdsFromLocation'
 
-@app.route("/scrap_user_repositories_skils_from_github/")
-def scrapUserRepositoriesSkilsFromGithub():
+@app.route("/scrap_github_user_profile/")
+def scrapGithubUserProfile():
     try:
         token = request.headers.get("access_token")
         githubUserId = request.args.get("githubUserId")
 
         githubController = GithubController()
-        return githubController.scrapUserRepositoriesSkilsFromGithub(token, githubUserId)
+        return githubController.scrapGithubUserProfile(token, githubUserId)
 
     except ValueError:
-        return 'Failed to scrapUserRepositoriesSkilsFromGithub'
+        return 'Failed to scrapGithubUserProfile'
+
+@app.route("/scrap_user_repositories_skills_from_github/")
+def scrapUserRepositoriesSkillsFromGithub():
+    try:
+        token = request.headers.get("access_token")
+        githubUserId = request.args.get("githubUserId")
+        location = request.args.get("location")
+
+        githubController = GithubController()
+        return githubController.scrapUserRepositoriesSkillsFromGithub(token, githubUserId, location)
+
+    except ValueError:
+        return 'Failed to scrapUserRepositoriesSkillsFromGithub'
 
 @app.route("/scrap_user_commits_repo_language_github/")
 def scrapUserCommitsRepoLanguageFromGithub():

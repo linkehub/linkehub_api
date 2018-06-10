@@ -7,7 +7,7 @@ alias deactivate 'test $?_OLD_VIRTUAL_PATH != 0 && setenv PATH "$_OLD_VIRTUAL_PA
 # Unset irrelevant variables.
 deactivate nondestructive
 
-setenv VIRTUAL_ENV "/Users/diego/Documents/Projects/Linkehub/API/linkehub_api_i1/webapp/ENV"
+setenv VIRTUAL_ENV "/Users/diego/Documents/Projects/Linkehub/API/instances/linkehub_api_root/webapp/ENV"
 
 set _OLD_VIRTUAL_PATH="$PATH"
 setenv PATH "$VIRTUAL_ENV/bin:$PATH"

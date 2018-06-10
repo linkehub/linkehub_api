@@ -36,7 +36,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/diego/Documents/Projects/Linkehub/API/linkehub_api_i1/webapp/ENV"
+set -gx VIRTUAL_ENV "/Users/diego/Documents/Projects/Linkehub/API/instances/linkehub_api_root/webapp/ENV"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

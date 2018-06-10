@@ -89,21 +89,21 @@ class DBManager():
         return status
 
     '''
-        Upsert the list of skills of the user
+        Upsert the list of skills of a user and add an analysis about their strenghts
     '''
-    def storeGithubUserSkills(self, token, userId, skills):
+    def storeAnalysisUserSkills(self, token, userId, skills):
         status = False
 
         try:
 
             if token and userId and skills:
                 db = self.firebase.database()
-                db.child("github_profiles").child(userId).child("skills").set(skills, token)
+                db.child("github_profile_skills_location").child(userId).set(skills, token)
 
                 status = True
 
         except Exception as e:
-            print("Failed to storeGithubUserSkills: {0}".format(e))
+            print("Failed to storeAnalysisUserSkills: {0}".format(e))
 
         return status
 
@@ -153,3 +153,23 @@ class DBManager():
             print("Failed to getListGithubUserIdsFromLocation: {0}".format(e))
 
         return userIds
+
+    '''
+       Return a Github user by its id
+    '''
+    def getGithubUser(self, userId):
+        user = {}
+
+        try:
+
+            if userId:
+                db = self.firebase.database()
+                userFromDb = db.child("github_profiles/{0}".format(userId)).get()
+
+                if userFromDb:
+                    user = userFromDb.val()
+
+        except  Exception as e:
+            print("Failed to getGithubUser: {0}".format(e))
+
+        return user

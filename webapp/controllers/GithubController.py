@@ -5,9 +5,12 @@ import datetime
 import http.client
 import urllib
 import json
+import pandas as pd
+import numpy as np
 
 from utils.NetworkingUtils import NetworkingUtils
 from utils.StringUtils import StringUtils
+from utils.DataCleaningUtils import DataCleaningUtils
 from persistence.DBController import DBManager
 
 '''
@@ -17,6 +20,7 @@ class GithubController():
 
     def __init__(self):
         self.netUtils = NetworkingUtils()
+        self.dcUtils = DataCleaningUtils()
         self.dbManager = DBManager()
 
     '''
@@ -31,17 +35,11 @@ class GithubController():
         }
 
         try:
-            # Create a connection with the Github API
-            connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
-
             # Make a request to the Github API and verify if the limit of requests per hour has been exceeded
             print("Making request to the Github API to determine if limit of requests per hour has been exceeded  ...")
 
-            connection.request("GET", "/rate_limit", headers={
-                "cache-control": "no-cache",
-                "User-Agent": "Linkehub-API",
-                "Accept": "application/vnd.github.v3+json"
-            })
+            connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
+            connection.request("GET", "/rate_limit", headers=self.netUtils.AUTH_GITHUB_HEADER)
 
             res = connection.getresponse()
             data = res.read()
@@ -65,6 +63,49 @@ class GithubController():
         return json.dumps(response)
 
     '''
+        Return and store the profile of a github user
+    '''
+    def scrapGithubUserProfile(self, token, userId):
+        response = {
+            "success" : False,
+            "msg" : "Failed to collect the Github user profile",
+            "user_profile" : ""
+        }
+
+        try:
+
+            if not token or not userId:
+                response["msg"] = "{0}. {1}".format(response["msg"], "Failed to validate the input parameters")
+            else:
+                # Make a request to the Github API to get the profile info of a user
+                print("Making a request to the Github API to get the profile info of a user ...")
+
+                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
+                connection.request("GET", "/search/users?q={0}".format(userId), headers=self.netUtils.AUTH_GITHUB_HEADER)
+
+                res = connection.getresponse()
+                data = res.read()
+                githubApiResponse = json.loads(data.decode(self.netUtils.UTF8_DECODER))
+
+                if githubApiResponse is not None:
+                        
+                    if "items" in githubApiResponse:
+                        listUsers = githubApiResponse["items"]
+
+                        if listUsers[0] is not None:
+                            profile = listUsers[0]
+                            self.dbManager.storeBasicUserInfoFromGithub(token, profile)
+
+                            response["success"] = True
+                            response["msg"] = "We got a response from the Github API"
+                            response["user_profile"] = profile
+
+        except Exception as err:
+            print("Failed to verify if scrapGithubUserProfile {0}".format(err))
+
+        return json.dumps(response)
+
+    '''
        Returns a list of Github users from a given location.
     '''
     def getGithubUsersFromLocation(self, token, storeInDb, location, pageNumber):
@@ -81,23 +122,15 @@ class GithubController():
             if not token or not location or not pageNumber:
                 response["msg"] = "{0}. {1}".format(response["msg"], "Invalid input parameters")
             else:
-                # Create a connection with the Github API
-                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
-
                 # Make a request to get the list of users from a location
                 print("Making request to the get the list of Github users from a location ...")
 
-                headers = {
-                    "cache-control": "no-cache",
-	                "User-Agent": "Linkehub-API",
-	                "Accept": "application/vnd.github.v3+json"
-                }
+                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
                 endpoint = "/search/users?q=location:{0}&page={1}".format(
                     urllib.parse.quote(location),
                     urllib.parse.quote(pageNumber)
                 )
-                
-                connection.request("GET", endpoint, headers=headers)
+                connection.request("GET", endpoint, headers=self.netUtils.AUTH_GITHUB_HEADER)
 
                 res = connection.getresponse()
                 data = res.read()
@@ -137,13 +170,13 @@ class GithubController():
         return json.dumps(response)
 
     '''
-        Scrap the profile info of a Github user
+        Scrap the repositories, personal info and make a simple descriptive analysis of the skills of a 
+        Github user.
     '''
-    def scrapUserRepositoriesSkilsFromGithub(self, token, userId):
+    def scrapUserRepositoriesSkillsFromGithub(self, token, userId, location):
         response = {
             "success" : False,
-            "msg" : "Failed to get profile info of the given Github user",
-            "basic_github_user_info" : None,
+            "msg" : "Failed to scrap info about the user repositories",
             "github_user_repos" : None
         }
 
@@ -152,102 +185,125 @@ class GithubController():
             if not token or not userId:
                 response["msg"] = "Invalid userId"
             else:
-                # Create a connection with the Github API
-                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
-
                 # GET the list of repositories of the user
-                print("Requesting list of repositories ...")
+                print("Requesting list of repositories and skills ...")
 
-                headers = {
-                    "cache-control": "no-cache",
-	                "User-Agent": "Linkehub-API",
-	                "Accept": "application/vnd.github.v3+json"
-                }
+                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
                 endpoint = "/users/{0}/repos".format(
                     urllib.parse.quote(userId)
                 )
-
-                connection.request("GET", endpoint, headers=headers)
-
+                connection.request("GET", endpoint, headers=self.netUtils.AUTH_GITHUB_HEADER)
                 res = connection.getresponse()
                 data = res.read()
-                userReposResponse = json.loads(data.decode(self.netUtils.UTF8_DECODER))
 
-                if userReposResponse is not None:
-                    userRepos = {}
-                    userLanguages = {}
-                    
-                    if isinstance(userReposResponse, list):
+                # Pre-process the data within the response and extract some simple descriptive 
+                # statistics about the user skills
+                df = pd.read_json(data.decode(self.netUtils.UTF8_DECODER))
+                toDrop = [
+                    'archive_url',
+                    'assignees_url',
+                    'blobs_url',
+                    'branches_url',
+                    'clone_url',
+                    'compare_url',
+                    'deployments_url',
+                    'downloads_url',
+                    'events_url',
+                    'forks_url',
+                    'git_refs_url',
+                    'git_tags_url',
+                    'git_url',
+                    'merges_url',
+                    'milestones_url',
+                    'mirror_url',
+                    'notifications_url',
+                    'pulls_url',
+                    'releases_url',
+                    'ssh_url',
+                    'stargazers_url',
+                    'statuses_url',
+                    'subscription_url',
+                    'svn_url',
+                    'tags_url',
+                    'trees_url',
+                    'hooks_url',
+                    'issue_comment_url',
+                    'issue_events_url',
+                    'issues_url',
+                    'keys_url',
+                    'labels_url',
+                    'html_url',
+                    'collaborators_url',
+                    'comments_url',
+                    'commits_url',
+                    'contents_url',
+                    'contributors_url',
+                    'git_commits_url',
+                    'languages_url',
+                    'subscribers_url',
+                    'teams_url',
+                    'full_name',
+                    'archived',
+                    'default_branch',
+                    'fork',
+                    'forks',
+                    'node_id',
+                    'open_issues',
+                    'license',
+                    'watchers'
+                ]
+                df.drop(toDrop, inplace=True, axis=1)
+                df.set_index('id')
+                df['owner'] = df['owner'].apply(self.dcUtils.getGithubOwnerLogin)
+                df['is_owner'] = df['owner'].apply(self.dcUtils.isGithubUserOwnerRepo, args=(userId,))
+                df['created_at'] = df['created_at'].apply(self.dcUtils.ensureSerializableDate)
+                df['pushed_at'] = df['pushed_at'].apply(self.dcUtils.ensureSerializableDate)
+                df['updated_at'] = df['updated_at'].apply(self.dcUtils.ensureSerializableDate)
+                df.fillna(value=0)
 
-                        for repo in userReposResponse:
-                            cleanedRepo = {}
-                            strUtils = StringUtils()
+                # Build the list of repositories and store it on the database
+                userRepos = {}
+                self.dcUtils.buildDictObjectsFromDataFrame(df, userRepos)
+                self.dbManager.storeReposGithubUser(token, userId, userRepos)
 
-                            # Clean the repo
-                            if "id" in repo:
-                                cleanedRepo["id"] = strUtils.getCleanedJsonValue(repo["id"])
+                # Simple descriptive analysis of the user skills
+                userSkillsAnalysis = {}
+                userSkillsAnalysis["github_userid"] = userId
+                userSkillsAnalysis["location"] = location
 
-                            if "name" in repo:
-                                cleanedRepo["name"] = strUtils.getCleanedJsonValue(repo["name"])
+                # Repos x Skills
+                numReposPerSkill = df['language'].value_counts()
+                self.dcUtils.flattenShallowObj(numReposPerSkill, userSkillsAnalysis, "num_repos_skill")
+                
+                # Strongest repository and language
+                rowRepoMaxNumStars = df['stargazers_count'].idxmax()
+                repoMaxNumStars = df.loc[rowRepoMaxNumStars]
+                strongRepo = repoMaxNumStars["name"]
+                strongLanguage = repoMaxNumStars["language"]
+                userSkillsAnalysis["strong_repo"] = strongRepo
+                userSkillsAnalysis["strong_language"] = strongLanguage
 
-                            if "language" in repo:
-                                cleanedRepo["language"] = strUtils.getCleanedJsonValue(repo["language"])
+                # Repos x Stargazers
+                starsPerSkill = df.groupby('language')['stargazers_count'].agg(['sum','max','mean'])
+                self.dcUtils.flattenDeep2Obj(starsPerSkill, userSkillsAnalysis, "lang_x_stargazers")
+                
+                # Language x Watchers
+                watchersPerSkill = df.groupby('language')['watchers_count'].agg(['sum','max','mean'])
+                self.dcUtils.flattenDeep2Obj(watchersPerSkill, userSkillsAnalysis, "lang_x_watchers")
+                
+                # Language x Forks
+                forksPerSkill = df.groupby('language')['forks_count'].agg(['sum','max','mean'])
+                self.dcUtils.flattenDeep2Obj(forksPerSkill, userSkillsAnalysis, "lang_x_forks")
 
-                            if "full_name" in repo:
-                                cleanedRepo["full_name"] = strUtils.getCleanedJsonValue(repo["full_name"])
+                # Store the results of the analysis on the database
+                self.dbManager.storeAnalysisUserSkills(token, userId, userSkillsAnalysis)
 
-                            if "private" in repo:
-                                cleanedRepo["private"] = strUtils.getCleanedJsonValue(repo["private"])
+                response["success"] = True
+                response["msg"] = "We got the user repositories"
+                response["github_user_repos"] = userRepos
 
-                            if "html_url" in repo:
-                                cleanedRepo["html_url"] = strUtils.getCleanedJsonValue(repo["html_url"])
-
-                            if "description" in repo:
-                                cleanedRepo["description"] = strUtils.getCleanedJsonValue(repo["description"])
-
-                            if "url" in repo:
-                                cleanedRepo["url"] = strUtils.getCleanedJsonValue(repo["url"])
-
-                            if "collaborators_url" in repo:
-                                cleanedRepo["collaborators_url"] = strUtils.getCleanedJsonValue(repo["collaborators_url"])
-
-                            if "languages_url" in repo:
-                                cleanedRepo["languages_url"] = strUtils.getCleanedJsonValue(repo["languages_url"])
-
-                            if "subscribers_url" in repo:
-                                cleanedRepo["subscribers_url"] = strUtils.getCleanedJsonValue(repo["subscribers_url"])
-
-                            if "commits_url" in repo:
-                                cleanedRepo["commits_url"] = strUtils.getCleanedJsonValue(repo["commits_url"])
-
-                            if "updated_at" in repo:
-                                cleanedRepo["updated_at"] = strUtils.getCleanedJsonValue(repo["updated_at"])
-                            
-                            # Get only the main language of the repo and append it to the list of languages of the user
-                            if "language" in cleanedRepo:
-
-                                if cleanedRepo["language"] is not None:
-                                    userLanguages[cleanedRepo["language"]] = True
-
-                            userRepos[cleanedRepo["name"]] = cleanedRepo
-
-                        # Fetch a success message
-                        response["msg"] = response["msg"] + " We also got the list of repositories. "
-                        response["success"] = True
-                        response["github_user_repos"] = userRepos
-                        response["user_languages"] = userLanguages
-
-                    # Upsert the list of languages of the user
-                    userLanguages = json.loads(json.dumps(userLanguages))
-                    userRepos = json.loads(json.dumps(userRepos))
-
-                    self.dbManager.storeGithubUserSkills(token, userId, userLanguages)
-
-                    # Store the list of repositories of the user into the database
-                    self.dbManager.storeReposGithubUser(token, userId, userRepos)
-
-        except Exception as err:
-            print("Failed to scrapBasicUserInfoFromGithub {0}".format(err))
+        except ValueError as err:
+            print("Failed to scrapUserRepositoriesSkillsFromGithub {0}".format(err))
 
         return json.dumps(response)
 
@@ -269,22 +325,14 @@ class GithubController():
             else:
                 print("Requesting list of commits on a specific language in the given repository ...")
 
-                # Create a connection with the Github API
-                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
-
                 # GET user commits x repo x language
-                headers = {
-                    "cache-control": "no-cache",
-	                "User-Agent": "Linkehub-API",
-	                "Accept": "application/vnd.github.v3+json"
-                }
+                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
                 endpoint = "/search/code?q=language:{0}+repo:{1}/{2}".format(
                     urllib.parse.quote(language),
                     urllib.parse.quote(userId),
                     urllib.parse.quote(repo)
                 )
-
-                connection.request("GET", endpoint, headers=headers)
+                connection.request("GET", endpoint, headers=self.netUtils.AUTH_GITHUB_HEADER)
 
                 res = connection.getresponse()
                 data = res.read()
@@ -351,21 +399,13 @@ class GithubController():
             else:
                 print("Requesting list of commits made using a specific language ...")
 
-                # Create a connection with the Github API
-                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
-
                 # GET user commits x language
-                headers = {
-                    "cache-control": "no-cache",
-	                "User-Agent": "Linkehub-API",
-	                "Accept": "application/vnd.github.v3+json"
-                }
+                connection = http.client.HTTPSConnection(self.netUtils.GITHUB_API_ROOT_URL)
                 endpoint = "/search/code?q=language:{0}+user:{1}".format(
                     urllib.parse.quote(language),
                     urllib.parse.quote(userId)
                 )
-
-                connection.request("GET", endpoint, headers=headers)
+                connection.request("GET", endpoint, headers=self.netUtils.AUTH_GITHUB_HEADER)
 
                 res = connection.getresponse()
                 data = res.read()
@@ -373,7 +413,7 @@ class GithubController():
 
                 # Fetch the results that are going to be stored in the database
                 if commitsPerLanguage is not None:
-                    
+
                     if "items" in commitsPerLanguage:
                         userCommits = {}
                         codeSamples = {}
