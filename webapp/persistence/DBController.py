@@ -89,6 +89,30 @@ class DBManager():
         return status
 
     '''
+        Store objects that represent the frequency distribuition of a few indicators of the user skills
+    '''
+    def storeIndicatorsGithubUserSkills(self, token, userId, sumReposPerSkill, sumStarPerSkill, sumWatchersPerSkill, sumForksPerSkill, strongRepo, strongSkill):
+        status = False
+
+        try:
+
+            if token and userId and sumReposPerSkill and sumStarPerSkill and sumWatchersPerSkill and sumForksPerSkill and strongRepo and strongSkill:
+                db = self.firebase.database()
+                db.child("github_profiles").child(userId).child("sum_repos_x_skill").set(sumReposPerSkill, token)
+                db.child("github_profiles").child(userId).child("sum_stars_x_skill").set(sumStarPerSkill, token)
+                db.child("github_profiles").child(userId).child("sum_watchers_x_skill").set(sumWatchersPerSkill, token)
+                db.child("github_profiles").child(userId).child("sum_forks_per_skill").set(sumForksPerSkill, token)
+                db.child("github_profiles").child(userId).child("strongest_repo").set(strongRepo, token)
+                db.child("github_profiles").child(userId).child("strongest_skill").set(strongSkill, token)
+
+                status = True
+
+        except Exception as e:
+            print("Failed to storeIndicatorsGithubUserSkills: {0}".format(e))
+
+        return status
+
+    '''
         Upsert the list of skills of a user and add an analysis about their strenghts
     '''
     def storeAnalysisUserSkills(self, token, userId, skills):

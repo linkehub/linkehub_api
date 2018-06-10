@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import math
+import numbers
 import datetime
 
+from decimal import Decimal
 from utils.StringUtils import StringUtils
 
 '''
@@ -10,16 +12,19 @@ from utils.StringUtils import StringUtils
 '''
 class DataCleaningUtils():
 
+    def __init__(self):
+        self.TAG = "DCUtils"
+
     def ensureValidString(self, description):
         try:
 
             if description is not None:
                 return description
 
-            return ""
+        except Exception as err:
+            print("{0} Failed to ensureValidString {1}".format(self.TAG, err))
 
-        except Exception:
-            return ""
+        return ""
 
     def ensureValidFloatNumber(self, number):
         try:
@@ -29,8 +34,21 @@ class DataCleaningUtils():
 
             return number
 
-        except Exception:
-            return ""
+        except Exception as err:
+            print("{0} Failed to ensureValidFloatNumber {1}".format(self.TAG, err))
+
+        return ""
+
+    def ensureSerializableDate(self, timestamp):
+        try:
+
+            if timestamp is not None:
+                return timestamp.timestamp()
+
+        except Exception as err:
+            print("{0} Failed to ensureSerializableDate {1}".format(self.TAG, err))
+
+        return ""
 
     def getGithubOwnerLogin(self, owner):
         try:
@@ -40,10 +58,10 @@ class DataCleaningUtils():
                 if "login" in owner:
                     return owner["login"]
 
-            return ""
+        except Exception as err:
+            print("{0} Failed to getGithubOwnerLogin {1}".format(self.TAG, err))
 
-        except Exception:
-            return ""
+        return ""
 
     def isGithubUserOwnerRepo(self, owner, userId):
         try:
@@ -53,48 +71,10 @@ class DataCleaningUtils():
                 if userId == owner:
                     return True
 
-            return False
+        except Exception as err:
+            print("{0} Failed to isGithubUserOwnerRepo {1}".format(self.TAG, err))
 
-        except Exception:
-            return ""
-
-    def flattenShallowObj(self, shallowDict, flatObj, flatKey):
-        try:
-            strUtils = StringUtils()
-
-            for key, value in shallowDict.items():
-                cFlatKey = strUtils.getCleanedJsonVal(flatKey)
-                cKey = strUtils.getCleanedJsonVal(key)
-
-                flatObj["{0}_{1}".format(cFlatKey, cKey)] = value
-
-        except Exception:
-            return ""
-
-    def flattenDeep2Obj(self, deepDict, flatObj, flatKey):
-        try:
-            strUtils = StringUtils()
-
-            for funcName, funcSeries in deepDict.items():
-                        
-                for langName, funcValue in funcSeries.items():
-                    cFlatKey = strUtils.getCleanedJsonVal(flatKey)
-                    cFuncName = strUtils.getCleanedJsonVal(funcName)
-                    cLangName = strUtils.getCleanedJsonVal(langName)
-
-                    flatObj["{0}_{1}_{2}".format(cFlatKey, cFuncName, cLangName)] = funcValue
-
-        except Exception:
-            return ""
-
-    def ensureSerializableDate(self, timestamp):
-        try:
-            
-            if timestamp is not None:
-                return timestamp.timestamp()
-
-        except Exception:
-            return ""
+        return False
 
     def buildDictObjectsFromDataFrame(self, df, dictObj):
         try:
@@ -118,5 +98,46 @@ class DataCleaningUtils():
 
             return dictObj
 
-        except Exception:
-            print("")
+        except Exception as err:
+            print("{0} Failed to buildDictObjectsFromDataFrame {1}".format(self.TAG, err))
+
+        return None
+
+    def flattenShallowObj(self, shallowDict, flatObj, flatKey, frequencySeries):
+        try:
+            strUtils = StringUtils()
+
+            for key, value in shallowDict.items():
+                cFlatKey = strUtils.getCleanedJsonVal(flatKey)
+                cKey = strUtils.getCleanedJsonVal(key)
+
+                if cFlatKey is not None and cKey is not None:
+
+                    if cFlatKey is not "" and cKey is not "":
+                        flatObj["{0}_{1}".format(cFlatKey, cKey)] = value
+                        frequencySeries["{0}_{1}".format(cFlatKey, cKey)] = value
+
+        except Exception as err:
+            print("{0} Failed to flattenShallowObj {1}".format(self.TAG, err))
+
+    def flattenDeep2Obj(self, deepDict, flatObj, flatKey, frequencySeries):
+        try:
+            strUtils = StringUtils()
+
+            for funcName, funcSeries in deepDict.items():
+
+                for langName, funcValue in funcSeries.items():
+                    cFlatKey = strUtils.getCleanedJsonVal(flatKey)
+                    cFuncName = strUtils.getCleanedJsonVal(funcName)
+                    cLangName = strUtils.getCleanedJsonVal(langName)
+
+                    if cFlatKey is not None and cFuncName is not None and cLangName is not None:
+
+                        if cFlatKey is not "" and cFuncName is not "" and cLangName is not "":
+                            flatObj["{0}_{1}_{2}".format(cFlatKey, cFuncName, cLangName)] = funcValue
+
+                            if cFuncName == "sum":
+                                frequencySeries["{0}_{1}_{2}".format(cFlatKey, cFuncName, cLangName)] = funcValue
+
+        except Exception as err:
+            print("{0} Failed to flattenDeep2Obj {1}".format(self.TAG, err))

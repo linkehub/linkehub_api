@@ -177,7 +177,13 @@ class GithubController():
         response = {
             "success" : False,
             "msg" : "Failed to scrap info about the user repositories",
-            "github_user_repos" : None
+            "github_user_repos" : "",
+            "sum_repos_x_skill" : "",
+            "sum_star_x_skill" : "",
+            "sum_watchers_x_skill" : "",
+            "sum_forks_x_skill" : "",
+            "strongest_repo" : "",
+            "strongest_language" : ""
         }
 
         try:
@@ -263,8 +269,13 @@ class GithubController():
 
                 # Build the list of repositories and store it on the database
                 userRepos = {}
+                sumReposPerSkill = {}
+                sumStarPerSkill = {}
+                sumWatchersPerSkill = {}
+                sumForksPerSkill = {}
+                strongRepo = ""
+                strongLanguage = ""
                 self.dcUtils.buildDictObjectsFromDataFrame(df, userRepos)
-                self.dbManager.storeReposGithubUser(token, userId, userRepos)
 
                 # Simple descriptive analysis of the user skills
                 userSkillsAnalysis = {}
@@ -273,8 +284,8 @@ class GithubController():
 
                 # Repos x Skills
                 numReposPerSkill = df['language'].value_counts()
-                self.dcUtils.flattenShallowObj(numReposPerSkill, userSkillsAnalysis, "num_repos_skill")
-                
+                self.dcUtils.flattenShallowObj(numReposPerSkill, userSkillsAnalysis, "num_repos_skill", sumReposPerSkill)
+
                 # Strongest repository and language
                 rowRepoMaxNumStars = df['stargazers_count'].idxmax()
                 repoMaxNumStars = df.loc[rowRepoMaxNumStars]
@@ -285,22 +296,40 @@ class GithubController():
 
                 # Repos x Stargazers
                 starsPerSkill = df.groupby('language')['stargazers_count'].agg(['sum','max','mean'])
-                self.dcUtils.flattenDeep2Obj(starsPerSkill, userSkillsAnalysis, "lang_x_stargazers")
-                
+                self.dcUtils.flattenDeep2Obj(starsPerSkill, userSkillsAnalysis, "lang_x_stargazers", sumStarPerSkill)
+
                 # Language x Watchers
                 watchersPerSkill = df.groupby('language')['watchers_count'].agg(['sum','max','mean'])
-                self.dcUtils.flattenDeep2Obj(watchersPerSkill, userSkillsAnalysis, "lang_x_watchers")
-                
+                self.dcUtils.flattenDeep2Obj(watchersPerSkill, userSkillsAnalysis, "lang_x_watchers", sumWatchersPerSkill)
+
                 # Language x Forks
                 forksPerSkill = df.groupby('language')['forks_count'].agg(['sum','max','mean'])
-                self.dcUtils.flattenDeep2Obj(forksPerSkill, userSkillsAnalysis, "lang_x_forks")
+                self.dcUtils.flattenDeep2Obj(forksPerSkill, userSkillsAnalysis, "lang_x_forks", sumForksPerSkill)
 
-                # Store the results of the analysis on the database
+                # Store the results on the database
+                self.dbManager.storeReposGithubUser(token, userId, userRepos)
+                self.dbManager.storeIndicatorsGithubUserSkills(
+                    token,
+                    userId,
+                    sumReposPerSkill,
+                    sumStarPerSkill,
+                    sumWatchersPerSkill,
+                    sumForksPerSkill,
+                    strongRepo,
+                    strongLanguage
+                )
                 self.dbManager.storeAnalysisUserSkills(token, userId, userSkillsAnalysis)
 
+                # Fetch a successful response to the client                
                 response["success"] = True
                 response["msg"] = "We got the user repositories"
                 response["github_user_repos"] = userRepos
+                response["sum_repos_x_skill"] = sumReposPerSkill
+                response["sum_star_x_skill"] = sumStarPerSkill
+                response["sum_watchers_x_skill"] = sumWatchersPerSkill
+                response["sum_forks_x_skill"] = sumForksPerSkill
+                response["strongest_repo"] = strongRepo
+                response["strongest_language"] = strongLanguage
 
         except ValueError as err:
             print("Failed to scrapUserRepositoriesSkillsFromGithub {0}".format(err))
