@@ -3,6 +3,7 @@
 import math
 import numbers
 import datetime
+import pandas as pd
 
 from decimal import Decimal
 from utils.StringUtils import StringUtils
@@ -72,9 +73,39 @@ class DataCleaningUtils():
                     return True
 
         except Exception as err:
-            print("{0} Failed to isGithubUserOwnerRepo {1}".format(self.TAG, err))
+            print("{0} Failed to verify isGithubUserOwnerRepo {1}".format(self.TAG, err))
 
         return False
+
+    def columnExistsInDataFrame(self, df, columnName):
+        try:
+
+            if df is not None and columnName is not None:
+
+                if pd.Series(columnName).isin(df.columns).all():
+                    return True
+
+        except Exception as err:
+            print("{0} Failed to verify if columnExistsInDataFrame {1}".format(self.TAG, err))
+
+        return False
+
+    def getColumnsToDrop(self, df, listColumnNames):
+        toDrop = []
+
+        try:
+
+            if df is not None and listColumnNames is not None:
+
+                for column in listColumnNames:
+                    
+                    if pd.Series(column).isin(df.columns).all():
+                        toDrop.append(column)
+
+        except Exception as err:
+            print("{0} Failed to getColumnsToDrop {1}".format(self.TAG, err))
+
+        return toDrop
 
     def buildDictObjectsFromDataFrame(self, df, dictObj):
         try:

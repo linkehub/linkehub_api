@@ -118,6 +118,30 @@ def scrapUserCommitsLanguageFromGithub():
     except ValueError:
         return 'Failed to scrapUserCommitsLanguageFromGithub'
 
+@app.route("/get_github_user/")
+def getGithubUser():
+    try:
+        token = request.headers.get("access_token")
+        githubUserId = request.args.get("githubUserId")
+
+        githubController = GithubController()
+        return githubController.getGithubUser(token, githubUserId)
+
+    except ValueError:
+        return 'Failed to getGithubUser'
+
+@app.route("/delete_github_user/")
+def deleteGithubUser():
+    try:
+        token = request.headers.get("access_token")
+        githubUserId = request.args.get("githubUserId")
+
+        githubController = GithubController()
+        return githubController.deleteGithubUser(token, githubUserId)
+
+    except ValueError:
+        return 'Failed to deleteGithubUser'
+
 '''
     Initilization
 '''

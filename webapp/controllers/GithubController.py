@@ -202,136 +202,154 @@ class GithubController():
                 res = connection.getresponse()
                 data = res.read()
 
-                # Pre-process the data within the response and extract some simple descriptive 
-                # statistics about the user skills
-                df = pd.read_json(data.decode(self.netUtils.UTF8_DECODER))
-                toDrop = [
-                    'archive_url',
-                    'assignees_url',
-                    'blobs_url',
-                    'branches_url',
-                    'clone_url',
-                    'compare_url',
-                    'deployments_url',
-                    'downloads_url',
-                    'events_url',
-                    'forks_url',
-                    'git_refs_url',
-                    'git_tags_url',
-                    'git_url',
-                    'merges_url',
-                    'milestones_url',
-                    'mirror_url',
-                    'notifications_url',
-                    'pulls_url',
-                    'releases_url',
-                    'ssh_url',
-                    'stargazers_url',
-                    'statuses_url',
-                    'subscription_url',
-                    'svn_url',
-                    'tags_url',
-                    'trees_url',
-                    'hooks_url',
-                    'issue_comment_url',
-                    'issue_events_url',
-                    'issues_url',
-                    'keys_url',
-                    'labels_url',
-                    'html_url',
-                    'collaborators_url',
-                    'comments_url',
-                    'commits_url',
-                    'contents_url',
-                    'contributors_url',
-                    'git_commits_url',
-                    'languages_url',
-                    'subscribers_url',
-                    'teams_url',
-                    'full_name',
-                    'archived',
-                    'default_branch',
-                    'fork',
-                    'forks',
-                    'node_id',
-                    'open_issues',
-                    'license',
-                    'watchers'
-                ]
-                df.drop(toDrop, inplace=True, axis=1)
-                df.set_index('id')
-                df['owner'] = df['owner'].apply(self.dcUtils.getGithubOwnerLogin)
-                df['is_owner'] = df['owner'].apply(self.dcUtils.isGithubUserOwnerRepo, args=(userId,))
-                df['created_at'] = df['created_at'].apply(self.dcUtils.ensureSerializableDate)
-                df['pushed_at'] = df['pushed_at'].apply(self.dcUtils.ensureSerializableDate)
-                df['updated_at'] = df['updated_at'].apply(self.dcUtils.ensureSerializableDate)
-                df.fillna(value=0)
+                print(endpoint)
+                print(data)
 
-                # Build the list of repositories and store it on the database
-                userRepos = {}
-                sumReposPerSkill = {}
-                sumStarPerSkill = {}
-                sumWatchersPerSkill = {}
-                sumForksPerSkill = {}
-                strongRepo = ""
-                strongLanguage = ""
-                self.dcUtils.buildDictObjectsFromDataFrame(df, userRepos)
+                if data is not None:
+                    jsonData = data.decode(self.netUtils.UTF8_DECODER)
 
-                # Simple descriptive analysis of the user skills
-                userSkillsAnalysis = {}
-                userSkillsAnalysis["github_userid"] = userId
-                userSkillsAnalysis["location"] = location
+                    if jsonData is not None:
+                        response["success"] = True
 
-                # Repos x Skills
-                numReposPerSkill = df['language'].value_counts()
-                self.dcUtils.flattenShallowObj(numReposPerSkill, userSkillsAnalysis, "num_repos_skill", sumReposPerSkill)
+                        if jsonData == "[]":
+                            response["msg"] = "The user doesn't have repositories"
+                        else:
+                            # If the user has repositories
+                            # Pre-process the data within the response and extract some simple descriptive 
+                            # statistics about the user skills
+                            df = pd.read_json(jsonData)
+                            toDrop = self.dcUtils.getColumnsToDrop(df,
+                                [
+                                    'archive_url',
+                                    'assignees_url',
+                                    'blobs_url',
+                                    'branches_url',
+                                    'clone_url',
+                                    'compare_url',
+                                    'deployments_url',
+                                    'downloads_url',
+                                    'events_url',
+                                    'forks_url',
+                                    'git_refs_url',
+                                    'git_tags_url',
+                                    'git_url',
+                                    'merges_url',
+                                    'milestones_url',
+                                    'mirror_url',
+                                    'notifications_url',
+                                    'pulls_url',
+                                    'releases_url',
+                                    'ssh_url',
+                                    'stargazers_url',
+                                    'statuses_url',
+                                    'subscription_url',
+                                    'svn_url',
+                                    'tags_url',
+                                    'trees_url',
+                                    'hooks_url',
+                                    'issue_comment_url',
+                                    'issue_events_url',
+                                    'issues_url',
+                                    'keys_url',
+                                    'labels_url',
+                                    'html_url',
+                                    'collaborators_url',
+                                    'comments_url',
+                                    'commits_url',
+                                    'contents_url',
+                                    'contributors_url',
+                                    'git_commits_url',
+                                    'languages_url',
+                                    'subscribers_url',
+                                    'teams_url',
+                                    'full_name',
+                                    'archived',
+                                    'default_branch',
+                                    'fork',
+                                    'forks',
+                                    'node_id',
+                                    'open_issues',
+                                    'license',
+                                    'watchers'
+                                ]
+                            )
+                            df.drop(toDrop, inplace=True, axis=1)
 
-                # Strongest repository and language
-                rowRepoMaxNumStars = df['stargazers_count'].idxmax()
-                repoMaxNumStars = df.loc[rowRepoMaxNumStars]
-                strongRepo = repoMaxNumStars["name"]
-                strongLanguage = repoMaxNumStars["language"]
-                userSkillsAnalysis["strong_repo"] = strongRepo
-                userSkillsAnalysis["strong_language"] = strongLanguage
+                            # Only process valid indexable repositories
+                            if self.dcUtils.columnExistsInDataFrame(df, 'id'):
+                                df.set_index('id')
 
-                # Repos x Stargazers
-                starsPerSkill = df.groupby('language')['stargazers_count'].agg(['sum','max','mean'])
-                self.dcUtils.flattenDeep2Obj(starsPerSkill, userSkillsAnalysis, "lang_x_stargazers", sumStarPerSkill)
+                                df['owner'] = df['owner'].apply(self.dcUtils.getGithubOwnerLogin)
+                                df['is_owner'] = df['owner'].apply(self.dcUtils.isGithubUserOwnerRepo, args=(userId,))
+                                df['created_at'] = df['created_at'].apply(self.dcUtils.ensureSerializableDate)
+                                df['pushed_at'] = df['pushed_at'].apply(self.dcUtils.ensureSerializableDate)
+                                df['updated_at'] = df['updated_at'].apply(self.dcUtils.ensureSerializableDate)
+                                df.fillna(value=0)
 
-                # Language x Watchers
-                watchersPerSkill = df.groupby('language')['watchers_count'].agg(['sum','max','mean'])
-                self.dcUtils.flattenDeep2Obj(watchersPerSkill, userSkillsAnalysis, "lang_x_watchers", sumWatchersPerSkill)
+                                # Build the list of repositories and store it on the database
+                                userRepos = {}
+                                sumReposPerSkill = {}
+                                sumStarPerSkill = {}
+                                sumWatchersPerSkill = {}
+                                sumForksPerSkill = {}
+                                strongRepo = ""
+                                strongLanguage = ""
+                                self.dcUtils.buildDictObjectsFromDataFrame(df, userRepos)
 
-                # Language x Forks
-                forksPerSkill = df.groupby('language')['forks_count'].agg(['sum','max','mean'])
-                self.dcUtils.flattenDeep2Obj(forksPerSkill, userSkillsAnalysis, "lang_x_forks", sumForksPerSkill)
+                                # Simple descriptive analysis of the user skills
+                                userSkillsAnalysis = {}
+                                userSkillsAnalysis["github_userid"] = userId
+                                userSkillsAnalysis["location"] = location
 
-                # Store the results on the database
-                self.dbManager.storeReposGithubUser(token, userId, userRepos)
-                self.dbManager.storeIndicatorsGithubUserSkills(
-                    token,
-                    userId,
-                    sumReposPerSkill,
-                    sumStarPerSkill,
-                    sumWatchersPerSkill,
-                    sumForksPerSkill,
-                    strongRepo,
-                    strongLanguage
-                )
-                self.dbManager.storeAnalysisUserSkills(token, userId, userSkillsAnalysis)
+                                # Repos x Skills
+                                numReposPerSkill = df['language'].value_counts()
+                                self.dcUtils.flattenShallowObj(numReposPerSkill, userSkillsAnalysis, "num_repos_skill", sumReposPerSkill)
 
-                # Fetch a successful response to the client                
-                response["success"] = True
-                response["msg"] = "We got the user repositories"
-                response["github_user_repos"] = userRepos
-                response["sum_repos_x_skill"] = sumReposPerSkill
-                response["sum_star_x_skill"] = sumStarPerSkill
-                response["sum_watchers_x_skill"] = sumWatchersPerSkill
-                response["sum_forks_x_skill"] = sumForksPerSkill
-                response["strongest_repo"] = strongRepo
-                response["strongest_language"] = strongLanguage
+                                # Strongest repository and language
+                                rowRepoMaxNumStars = df['stargazers_count'].idxmax()
+                                repoMaxNumStars = df.loc[rowRepoMaxNumStars]
+                                strongRepo = repoMaxNumStars["name"]
+                                strongLanguage = repoMaxNumStars["language"]
+                                userSkillsAnalysis["strong_repo"] = strongRepo
+                                userSkillsAnalysis["strong_language"] = strongLanguage
 
-        except ValueError as err:
+                                # Repos x Stargazers
+                                starsPerSkill = df.groupby('language')['stargazers_count'].agg(['sum','max','mean'])
+                                self.dcUtils.flattenDeep2Obj(starsPerSkill, userSkillsAnalysis, "lang_x_stargazers", sumStarPerSkill)
+
+                                # Language x Watchers
+                                watchersPerSkill = df.groupby('language')['watchers_count'].agg(['sum','max','mean'])
+                                self.dcUtils.flattenDeep2Obj(watchersPerSkill, userSkillsAnalysis, "lang_x_watchers", sumWatchersPerSkill)
+
+                                # Language x Forks
+                                forksPerSkill = df.groupby('language')['forks_count'].agg(['sum','max','mean'])
+                                self.dcUtils.flattenDeep2Obj(forksPerSkill, userSkillsAnalysis, "lang_x_forks", sumForksPerSkill)
+
+                                # Store the results on the database
+                                self.dbManager.storeReposGithubUser(token, userId, userRepos)
+                                self.dbManager.storeIndicatorsGithubUserSkills(
+                                    token,
+                                    userId,
+                                    sumReposPerSkill,
+                                    sumStarPerSkill,
+                                    sumWatchersPerSkill,
+                                    sumForksPerSkill,
+                                    strongRepo,
+                                    strongLanguage
+                                )
+                                self.dbManager.storeAnalysisUserSkills(token, userId, userSkillsAnalysis)
+
+                                # Fetch a successful response to the client                
+                                response["msg"] = "We got the user repositories"
+                                response["github_user_repos"] = userRepos
+                                response["sum_repos_x_skill"] = sumReposPerSkill
+                                response["sum_star_x_skill"] = sumStarPerSkill
+                                response["sum_watchers_x_skill"] = sumWatchersPerSkill
+                                response["sum_forks_x_skill"] = sumForksPerSkill
+                                response["strongest_repo"] = strongRepo
+                                response["strongest_language"] = strongLanguage
+
+        except Exception as err:
             print("Failed to scrapUserRepositoriesSkillsFromGithub {0}".format(err))
 
         return json.dumps(response)
@@ -513,5 +531,52 @@ class GithubController():
 
         except Exception as err:
             print("Failed to getGithubUserIdsFromLocation {0}".format(err))
+
+        return json.dumps(response)
+
+    '''
+        Returns a Github user profile stored in the database
+    '''
+    def getGithubUser(self, token, userId):
+        response = {
+            "success" : False,
+            "msg" : "Failed to get the profile",
+            "github_profile": ""
+        }
+
+        try:
+            
+            if token and userId:
+                profile = self.dbManager.getGithubUser(userId)
+
+                if profile:
+                    response["success"] = True
+                    response["msg"] = "We found the profile"
+                    response["github_profile"] = profile
+
+        except Exception as err:
+            print("Failed to getGithubUser from DB {0}".format(err))
+
+        return json.dumps(response)
+
+    '''
+        Deletes a Github profile from the database
+    '''
+    def deleteGithubUser(self, token, userId):
+        response = {
+            "success" : False,
+            "msg" : "Failed to delete profile"
+        }
+
+        try:
+            
+            if token and userId:
+
+                if self.dbManager.deleteGithubUser(token, userId):
+                    response["success"] = True
+                    response["msg"] = "The Github profile has been deleted"
+
+        except Exception as err:
+            print("Failed to deleteGithubUser from DB {0}".format(err))
 
         return json.dumps(response)

@@ -5,6 +5,7 @@ import json
 import pyrebase
 
 from utils.NetworkingUtils import NetworkingUtils
+from utils.StringUtils import StringUtils
 from utils.Logger import Logger
 
 '''
@@ -15,7 +16,10 @@ class DBManager():
     def __init__(self):
 
         try:
+            self.TAG = "DBManager"
+
             self.netUtils = NetworkingUtils()
+            self.strUtils = StringUtils()
             self.logger = Logger()
             
             dirname = os.path.dirname(__file__)
@@ -26,7 +30,6 @@ class DBManager():
         
         except Exception as e:
             print("Failed to __init__: {0}".format(e))
-
 
     '''
         Returns a valid access token if the user logs in with a valid email and password
@@ -59,8 +62,10 @@ class DBManager():
                 if githubProfile["login"]:
                     githubProfile["queried_at"] = self.logger.get_utc_iso_timestamp()
 
+                    loginKey = self.strUtils.getCleanedJsonVal(githubProfile["login"])
+
                     db = self.firebase.database()
-                    db.child("github_profiles").child(githubProfile["login"]).update(githubProfile, token)
+                    db.child("github_profiles").child(loginKey).update(githubProfile, token)
                     
                     status = True
 
@@ -78,8 +83,10 @@ class DBManager():
         try:
 
             if repos:
+                userIdKey = self.strUtils.getCleanedJsonVal(userId)
+
                 db = self.firebase.database()
-                db.child("github_profiles").child(userId).child("repos").set(repos, token)
+                db.child("github_profiles").child(userIdKey).child("repos").set(repos, token)
 
                 status = True
 
@@ -97,13 +104,15 @@ class DBManager():
         try:
 
             if token and userId and sumReposPerSkill and sumStarPerSkill and sumWatchersPerSkill and sumForksPerSkill and strongRepo and strongSkill:
+                userIdKey = self.strUtils.getCleanedJsonVal(userId)
+
                 db = self.firebase.database()
-                db.child("github_profiles").child(userId).child("sum_repos_x_skill").set(sumReposPerSkill, token)
-                db.child("github_profiles").child(userId).child("sum_stars_x_skill").set(sumStarPerSkill, token)
-                db.child("github_profiles").child(userId).child("sum_watchers_x_skill").set(sumWatchersPerSkill, token)
-                db.child("github_profiles").child(userId).child("sum_forks_per_skill").set(sumForksPerSkill, token)
-                db.child("github_profiles").child(userId).child("strongest_repo").set(strongRepo, token)
-                db.child("github_profiles").child(userId).child("strongest_skill").set(strongSkill, token)
+                db.child("github_profiles").child(userIdKey).child("sum_repos_x_skill").set(sumReposPerSkill, token)
+                db.child("github_profiles").child(userIdKey).child("sum_stars_x_skill").set(sumStarPerSkill, token)
+                db.child("github_profiles").child(userIdKey).child("sum_watchers_x_skill").set(sumWatchersPerSkill, token)
+                db.child("github_profiles").child(userIdKey).child("sum_forks_per_skill").set(sumForksPerSkill, token)
+                db.child("github_profiles").child(userIdKey).child("strongest_repo").set(strongRepo, token)
+                db.child("github_profiles").child(userIdKey).child("strongest_skill").set(strongSkill, token)
 
                 status = True
 
@@ -121,8 +130,10 @@ class DBManager():
         try:
 
             if token and userId and skills:
+                userIdKey = self.strUtils.getCleanedJsonVal(userId)
+
                 db = self.firebase.database()
-                db.child("github_profile_skills_location").child(userId).set(skills, token)
+                db.child("github_profile_skills_location").child(userIdKey).set(skills, token)
 
                 status = True
 
@@ -138,21 +149,45 @@ class DBManager():
         status = False
 
         try:
+            userIdKey = self.strUtils.getCleanedJsonVal(userId)
 
-            if commitsPerLanguage:
-                dbCommits = self.firebase.database()
-                dbCommits.child("github_profiles").child(userId).child("commits").update(commitsPerLanguage, token)
+            if userIdKey:
 
-                status = True
+                if commitsPerLanguage:
+                    dbCommits = self.firebase.database()
+                    dbCommits.child("github_profiles").child(userIdKey).child("commits").update(commitsPerLanguage, token)
 
-            if codeSamples:
-                dbCodeSamples = self.firebase.database()
-                dbCodeSamples.child("github_profiles").child(userId).child("code_samples").update(codeSamples, token)
+                    status = True
+
+                if codeSamples:
+                    dbCodeSamples = self.firebase.database()
+                    dbCodeSamples.child("github_profiles").child(userIdKey).child("code_samples").update(codeSamples, token)
 
         except Exception as e:
             print("Failed to storeUserCommitsLanguageOnGithubRepo: {0}".format(e))
 
         return status
+
+    '''
+       Return a list of all Github user ids
+    '''
+    def getListGithubUserIds(self):
+        userIds = []
+
+        try:
+            db = self.firebase.database()
+            baseUrlGithubProfiles = db.child("github_profiles").get()
+            
+            for profile in baseUrlGithubProfiles.each():
+                dbObject = profile.val()
+
+                if dbObject is not None:
+                    userIds.append(dbObject['login'])
+
+        except  Exception as e:
+            print("Failed to getListGithubUserIds: {0}".format(e))
+
+        return userIds
 
     '''
        Return a list of Github user ids that were associated to a given location on the moment of the storage
@@ -187,8 +222,10 @@ class DBManager():
         try:
 
             if userId:
+                userIdKey = self.strUtils.getCleanedJsonVal(userId)
+
                 db = self.firebase.database()
-                userFromDb = db.child("github_profiles/{0}".format(userId)).get()
+                userFromDb = db.child("github_profiles/{0}".format(userIdKey)).get()
 
                 if userFromDb:
                     user = userFromDb.val()
@@ -197,3 +234,25 @@ class DBManager():
             print("Failed to getGithubUser: {0}".format(e))
 
         return user
+
+    '''
+       Deletes a Github user profile from the database
+    '''
+    def deleteGithubUser(self, token, userId):
+        try:
+
+            if token and userId:
+                userIdKey = self.strUtils.getCleanedJsonVal(userId)
+
+                db = self.firebase.database()
+                db.child("github_profiles/{0}".format(userIdKey)).set("", token)
+                db.child("github_profile_skills_location/{0}".format(userIdKey)).set("", token)
+                profile = self.getGithubUser(userIdKey)
+
+                if "login" not in profile:
+                    return True
+
+        except  Exception as e:
+            print("{0} Failed to deleteGithubUser: {1}".format(self.TAG, e))
+
+        return False
