@@ -202,9 +202,6 @@ class GithubController():
                 res = connection.getresponse()
                 data = res.read()
 
-                print(endpoint)
-                print(data)
-
                 if data is not None:
                     jsonData = data.decode(self.netUtils.UTF8_DECODER)
 

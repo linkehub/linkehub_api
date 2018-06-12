@@ -17,7 +17,7 @@ app = Flask(__name__)
 # Routing
 @app.route("/")
 def hello():
-    return "Linkehub API - know about the best jobs in your city that match your coding profile. v0.0.4"
+    return "Linkehub API - know about the best jobs in your city that match your coding profile. v0.0.5"
 
 @app.route("/login", methods=["POST"])
 def login():
