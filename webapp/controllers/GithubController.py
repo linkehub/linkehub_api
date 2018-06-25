@@ -219,55 +219,7 @@ class GithubController():
                                 [
                                     'archive_url',
                                     'assignees_url',
-                                    'blobs_url',
-                                    'branches_url',
-                                    'clone_url',
-                                    'compare_url',
-                                    'deployments_url',
-                                    'downloads_url',
-                                    'events_url',
-                                    'forks_url',
-                                    'git_refs_url',
-                                    'git_tags_url',
-                                    'git_url',
-                                    'merges_url',
-                                    'milestones_url',
-                                    'mirror_url',
-                                    'notifications_url',
-                                    'pulls_url',
-                                    'releases_url',
-                                    'ssh_url',
-                                    'stargazers_url',
-                                    'statuses_url',
-                                    'subscription_url',
-                                    'svn_url',
-                                    'tags_url',
-                                    'trees_url',
-                                    'hooks_url',
-                                    'issue_comment_url',
-                                    'issue_events_url',
-                                    'issues_url',
-                                    'keys_url',
-                                    'labels_url',
-                                    'html_url',
-                                    'collaborators_url',
-                                    'comments_url',
-                                    'commits_url',
-                                    'contents_url',
-                                    'contributors_url',
-                                    'git_commits_url',
-                                    'languages_url',
-                                    'subscribers_url',
-                                    'teams_url',
-                                    'full_name',
-                                    'archived',
-                                    'default_branch',
-                                    'fork',
-                                    'forks',
-                                    'node_id',
-                                    'open_issues',
-                                    'license',
-                                    'watchers'
+                                    'blobs_url'
                                 ]
                             )
                             df.drop(toDrop, inplace=True, axis=1)
@@ -302,11 +254,13 @@ class GithubController():
                                 numReposPerSkill = df['language'].value_counts()
                                 self.dcUtils.flattenShallowObj(numReposPerSkill, userSkillsAnalysis, "num_repos_skill", sumReposPerSkill)
 
-                                # Strongest repository and language
+                                # Repository with the maximum number of stars
                                 rowRepoMaxNumStars = df['stargazers_count'].idxmax()
                                 repoMaxNumStars = df.loc[rowRepoMaxNumStars]
+
                                 strongRepo = repoMaxNumStars["name"]
                                 strongLanguage = repoMaxNumStars["language"]
+
                                 userSkillsAnalysis["strong_repo"] = strongRepo
                                 userSkillsAnalysis["strong_language"] = strongLanguage
 

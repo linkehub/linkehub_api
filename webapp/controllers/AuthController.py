@@ -43,3 +43,25 @@ class AuthController():
             print("Failed to loginWithUsernamePassword {0}".format(err))
 
         return json.dumps(response)
+
+    '''
+        Verify if an access token is still valid
+    '''
+    def isValidToken(self, token):
+        isValid = False
+
+        try:
+            
+            if token:
+                auth = self.dbManager.firebase.auth()
+                user = auth.sign_in_with_custom_token(token)
+
+                if user is not None:
+
+                    if "idToken" in user:
+                        isValid = True
+
+        except Exception as e:
+            print("{0} Failed to verify isValidToken {1}".format(self.TAG, e))
+
+        return isValid
